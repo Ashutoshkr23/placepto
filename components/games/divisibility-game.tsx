@@ -4,22 +4,42 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const evenNumbers = [12,14,16,18,22,24,26,28,32,34,36,38,42,46,48,52,54,58,62,64,68,72,74,78,82,84,86,88,92,94,96,98];
-const oddNumbers = [11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45,47,49,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79,81,83,85,87,89,91,93,95,97,99];
 const ROUND_SECONDS = 5.4;
 const PASS_THROUGH_SECONDS = 0.8;
 const TARGET_SCORE = 8;
+
+const LEVELS = [
+  { divisor:2, rule:"The final digit is 0, 2, 4, 6, or 8.", tip:"Only check the final digit.", examples:[12,28,46] },
+  { divisor:3, rule:"Add the digits. Their sum must be divisible by 3.", tip:"For 123: 1 + 2 + 3 = 6.", examples:[21,42,123] },
+  { divisor:4, rule:"The number formed by the final two digits must be divisible by 4.", tip:"For 316, check 16.", examples:[24,52,316] },
+  { divisor:5, rule:"The final digit must be 0 or 5.", tip:"Look only at the final digit.", examples:[25,70,135] },
+  { divisor:6, rule:"The number must be divisible by both 2 and 3.", tip:"It must be even, and its digits must add to a multiple of 3.", examples:[18,42,126] },
+  { divisor:8, rule:"The number formed by the final three digits must be divisible by 8.", tip:"For a three-digit number, check the whole number.", examples:[104,216,328] },
+  { divisor:9, rule:"Add the digits. Their sum must be divisible by 9.", tip:"For 243: 2 + 4 + 3 = 9.", examples:[108,243,369] },
+  { divisor:10, rule:"The final digit must be 0.", tip:"Every multiple of 10 ends in zero.", examples:[20,70,130] },
+  { divisor:11, rule:"The alternating sum of the digits must be 0 or a multiple of 11.", tip:"For 121: 1 − 2 + 1 = 0.", examples:[121,242,363] },
+] as const;
 
 type Round = { lanes: number[]; answerLane: number };
 type GameStatus = "intro" | "playing" | "crashed" | "complete" | "rule";
 type Feedback = "clear" | null;
 
-function sample<T>(items: T[]) { return items[Math.floor(Math.random() * items.length)]; }
-function createRound(): Round {
+function randomBetween(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function createRound(divisor: number): Round {
+  const usesThreeDigits = divisor === 8 || divisor === 9 || divisor === 11;
+  const min = usesThreeDigits ? 100 : 10;
+  const max = usesThreeDigits ? 399 : 99;
   const answerLane = Math.floor(Math.random() * 3);
-  const wrong = [...oddNumbers].sort(() => Math.random() - 0.5).slice(0, 2);
+  const minFactor = Math.ceil(min / divisor);
+  const maxFactor = Math.floor(max / divisor);
+  const answer = randomBetween(minFactor, maxFactor) * divisor;
+  const wrong = new Set<number>();
+  while (wrong.size < 2) {
+    const candidate = randomBetween(min, max);
+    if (candidate % divisor !== 0) wrong.add(candidate);
+  }
   const lanes = [...wrong];
-  lanes.splice(answerLane, 0, sample(evenNumbers));
+  lanes.splice(answerLane, 0, answer);
   return { lanes, answerLane };
 }
 
@@ -46,20 +66,26 @@ function SpaceWorld() {
 }
 
 export function DivisibilityGame() {
+  const [levelIndex, setLevelIndex] = useState(0);
   const [status, setStatus] = useState<GameStatus>("intro");
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
-  const [round, setRound] = useState<Round>(() => createRound());
+  const [round, setRound] = useState<Round>(() => createRound(LEVELS[0].divisor));
   const [vehicleLane, setVehicleLane] = useState(1);
   const [time, setTime] = useState(ROUND_SECONDS);
   const [feedback, setFeedback] = useState<Feedback>(null);
+  const level = LEVELS[levelIndex];
 
   const resetRound = useCallback(() => {
-    setRound(createRound()); setTime(ROUND_SECONDS); setFeedback(null);
-  }, []);
+    setRound(createRound(level.divisor)); setTime(ROUND_SECONDS); setFeedback(null);
+  }, [level.divisor]);
   const start = useCallback(() => {
-    setScore(0); setRound(createRound()); setVehicleLane(1); setTime(ROUND_SECONDS); setFeedback(null); setStatus("playing");
-  }, []);
+    setScore(0); setRound(createRound(level.divisor)); setVehicleLane(1); setTime(ROUND_SECONDS); setFeedback(null); setStatus("playing");
+  }, [level.divisor]);
+  const advanceLevel = useCallback(() => {
+    const nextIndex = Math.min(levelIndex + 1, LEVELS.length - 1);
+    setLevelIndex(nextIndex); setScore(0); setBest(0); setRound(createRound(LEVELS[nextIndex].divisor)); setVehicleLane(1); setTime(ROUND_SECONDS); setFeedback(null); setStatus("intro");
+  }, [levelIndex]);
 
   const finishRound = useCallback(() => {
     if (vehicleLane !== round.answerLane) {
@@ -96,10 +122,10 @@ export function DivisibilityGame() {
 
   return <main className="min-h-screen overflow-hidden bg-[#17142b] px-3 py-4 text-white sm:px-6 sm:py-6">
     <div className="mx-auto max-w-4xl">
-      <header className="flex items-center justify-between px-1"><Link href="/" className="text-sm font-black text-[#d8cdff] transition hover:text-white">← Back to Placepto</Link><div className="flex gap-2"><span className="rounded-full bg-[#292442] px-3 py-1.5 text-xs font-black">BEST {best}</span><span className="rounded-full bg-[#6d4aff] px-3 py-1.5 text-xs font-black">RULE OF 2</span></div></header>
+      <header className="flex items-center justify-between px-1"><Link href="/" className="text-sm font-black text-[#d8cdff] transition hover:text-white">← Back to Placepto</Link><div className="flex gap-2"><span className="rounded-full bg-[#292442] px-3 py-1.5 text-xs font-black">BEST {best}</span><span className="rounded-full bg-[#6d4aff] px-3 py-1.5 text-xs font-black">LEVEL {levelIndex+1}/{LEVELS.length} · ÷{level.divisor}</span></div></header>
       <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_230px]">
         <section className="overflow-hidden rounded-[1.8rem] border-[3px] border-[#0f0d1f] bg-[#423c65] shadow-[0_10px_0_#0f0d1f,0_20px_35px_rgba(0,0,0,.28)]">
-          <div className="flex items-center justify-between bg-[#f7f3ff] px-4 py-3 text-[#17142b] sm:px-6"><div><p className="text-[10px] font-black tracking-[.18em] text-[#6d4aff]">DIVISIBILITY DASH</p><h1 className="display text-2xl font-black sm:text-3xl">Find a multiple of 2</h1></div><div className="flex h-13 w-13 flex-col items-center justify-center rounded-2xl border-2 border-[#17142b] bg-[#ffd85c] shadow-[0_3px_0_#17142b]"><b className="text-lg leading-none">{score}</b><span className="text-[8px] font-black">SCORE</span></div></div>
+          <div className="flex items-center justify-between bg-[#f7f3ff] px-4 py-3 text-[#17142b] sm:px-6"><div><p className="text-[10px] font-black tracking-[.18em] text-[#6d4aff]">DIVISIBILITY DASH</p><h1 className="display text-2xl font-black sm:text-3xl">Find a multiple of {level.divisor}</h1></div><div className="flex h-13 w-13 flex-col items-center justify-center rounded-2xl border-2 border-[#17142b] bg-[#ffd85c] shadow-[0_3px_0_#17142b]"><b className="text-lg leading-none">{score}</b><span className="text-[8px] font-black">SCORE</span></div></div>
           <div className="relative h-[440px] overflow-hidden sm:h-[500px] lg:h-[600px]">
             <SpaceWorld />
             <div className="absolute bottom-0 left-1/2 h-[70%] w-[118%] -translate-x-1/2 bg-gradient-to-b from-[#111329cc] to-[#191a34] [clip-path:polygon(42%_0,58%_0,100%_100%,0_100%)] shadow-[inset_0_0_80px_#050510]">
@@ -110,7 +136,7 @@ export function DivisibilityGame() {
               <div className="absolute inset-0 bg-[#8f7cff] opacity-85 [clip-path:polygon(52.35%_0,52.75%_0,67%_100%,66%_100%)] drop-shadow-[0_0_6px_#8f7cff]" />
               <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[#050510]/80 to-transparent" />
             </div>
-            <div className="absolute inset-x-0 top-4 z-10 mx-auto w-fit rounded-full border border-white/20 bg-[#17142bd9] px-4 py-2 text-center text-xs font-black tracking-wide shadow-lg backdrop-blur">EVEN NUMBER = SAFE LANE</div>
+            <div className="absolute inset-x-0 top-4 z-10 mx-auto w-fit rounded-full border border-white/20 bg-[#17142bd9] px-4 py-2 text-center text-xs font-black tracking-wide shadow-lg backdrop-blur">MULTIPLE OF {level.divisor} = SAFE LANE</div>
 
             {status === "playing" && <motion.div key={`${round.lanes.join("-")}-${score}`} initial={{ top:"30%", scale:.28 }} animate={{ top:["30%","73%","106%"], scale:[.28,1.12,1.48] }} transition={{ duration:ROUND_SECONDS+PASS_THROUGH_SECONDS, times:[0,ROUND_SECONDS/(ROUND_SECONDS+PASS_THROUGH_SECONDS),1], ease:"linear" }} className="absolute left-[7%] z-20 grid w-[86%] grid-cols-3 gap-3 sm:gap-7">
               {round.lanes.map((number,index)=><div key={`${number}-${index}`} className="relative flex flex-col items-center"><div className={`relative grid aspect-[1.18/1] w-full max-w-25 place-items-center overflow-hidden rounded-2xl border text-2xl font-black text-white backdrop-blur-md sm:text-3xl ${feedback && index===round.answerLane ? "border-[#8fffc4] bg-[#2cda82]/35 shadow-[0_0_26px_#4bff9f]" : "border-[#bcefff]/70 bg-white/10 shadow-[inset_0_0_18px_rgba(255,255,255,.14),0_0_24px_rgba(81,218,255,.35)]"}`}><span className="absolute inset-x-3 top-2 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent"/><span className="relative drop-shadow-[0_0_9px_#8cecff]">{number}</span><span className="absolute bottom-2 right-2 h-1.5 w-1.5 rounded-full bg-[#8cecff] shadow-[0_0_8px_#8cecff]"/></div><div className="h-9 w-px bg-gradient-to-b from-[#8cecff] to-transparent shadow-[0_0_8px_#8cecff]"/></div>)}
@@ -120,17 +146,17 @@ export function DivisibilityGame() {
             <AnimatePresence>{feedback && <motion.div initial={{opacity:0,y:8,scale:.75}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-8}} className="pointer-events-none absolute inset-x-0 top-[19%] z-40 text-center"><span className="inline-block -rotate-2 rounded-2xl border-2 border-[#bff5d0]/80 bg-[#bff5d0]/70 px-5 py-2 text-xl font-black text-[#17142b] shadow-[0_4px_18px_rgba(111,255,177,.28)] backdrop-blur-sm">CLEAR! +1</span></motion.div>}</AnimatePresence>
 
             <AnimatePresence>{isOverlayOpen && <motion.div initial={{opacity:0}} animate={{opacity:1}} className="absolute inset-0 z-50 grid place-items-center bg-[#17142be8] p-6 text-center backdrop-blur-[3px]"><motion.div initial={{y:18,scale:.96}} animate={{y:0,scale:1}} className="max-w-sm">
-              {status==="intro" && <><div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl border-2 border-white/20 bg-[#6d4aff] text-4xl shadow-[0_7px_0_#4930bc]">🏁</div><p className="mt-6 text-xs font-black tracking-[.18em] text-[#ffd85c]">DAY 01 · RULE OF 2</p><h2 className="display mt-2 text-4xl font-black sm:text-5xl">Ready to race?</h2><p className="mt-3 font-bold leading-6 text-[#d8cdff]">Move your car to the even number before the signs reach you. Clear 8 gates to win.</p><button onClick={start} className="mt-7 rounded-full bg-[#ffd85c] px-7 py-3.5 font-black text-[#17142b] shadow-[0_5px_0_#b68e18] transition active:translate-y-1 active:shadow-none">Start the engine →</button></>}
-              {status==="crashed" && <><div className="text-6xl">💥</div><p className="mt-4 text-xs font-black tracking-[.18em] text-[#ff9ba3]">ROUND OVER</p><h2 className="display mt-2 text-4xl font-black">That lane was odd!</h2><p className="mt-3 font-bold text-[#d8cdff]">You cleared {score} {score===1?"gate":"gates"}. Check the last digit and go again.</p><div className="mt-7 flex flex-wrap justify-center gap-3"><button onClick={start} className="rounded-full bg-[#ffd85c] px-6 py-3 font-black text-[#17142b]">Try again</button><button onClick={()=>setStatus("rule")} className="rounded-full border-2 border-white px-6 py-3 font-black">Check the rule</button></div></>}
-              {status==="complete" && <><div className="text-6xl">🏆</div><p className="mt-4 text-xs font-black tracking-[.18em] text-[#bff5d0]">CHALLENGE COMPLETE</p><h2 className="display mt-2 text-4xl font-black">Road cleared!</h2><p className="mt-3 font-bold text-[#d8cdff]">You spotted all 8 multiples of 2. That was fast thinking.</p><button onClick={start} className="mt-7 rounded-full bg-[#ffd85c] px-6 py-3 font-black text-[#17142b]">Race again</button></>}
-              {status==="rule" && <><div className="text-6xl">💡</div><h2 className="display mt-3 text-4xl font-black">The rule of 2</h2><p className="mt-3 font-bold leading-6 text-[#d8cdff]">Look at the final digit. If it is <span className="text-[#ffd85c]">0, 2, 4, 6, or 8</span>, the number is divisible by 2.</p><div className="mx-auto mt-5 flex max-w-xs justify-center gap-2">{[0,2,4,6,8].map(n=><b key={n} className="grid h-10 w-10 place-items-center rounded-xl bg-white text-[#17142b]">{n}</b>)}</div><button onClick={start} className="mt-7 rounded-full bg-[#ffd85c] px-6 py-3 font-black text-[#17142b]">Got it — race again</button></>}
+              {status==="intro" && <><div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl border-2 border-white/20 bg-[#6d4aff] text-3xl font-black shadow-[0_7px_0_#4930bc]">÷{level.divisor}</div><p className="mt-6 text-xs font-black tracking-[.18em] text-[#ffd85c]">LEVEL {levelIndex+1} · RULE OF {level.divisor}</p><h2 className="display mt-2 text-4xl font-black sm:text-5xl">Ready to race?</h2><p className="mt-3 font-bold leading-6 text-[#d8cdff]">Move to a number divisible by {level.divisor} before the gates reach you. Clear {TARGET_SCORE} gates to win.</p><button onClick={start} className="mt-7 rounded-full bg-[#ffd85c] px-7 py-3.5 font-black text-[#17142b] shadow-[0_5px_0_#b68e18] transition active:translate-y-1 active:shadow-none">Start level {levelIndex+1} →</button></>}
+              {status==="crashed" && <><div className="text-6xl">💥</div><p className="mt-4 text-xs font-black tracking-[.18em] text-[#ff9ba3]">ROUND OVER</p><h2 className="display mt-2 text-4xl font-black">Not divisible by {level.divisor}</h2><p className="mt-3 font-bold text-[#d8cdff]">You cleared {score} {score===1?"gate":"gates"}. Review the rule and race again.</p><div className="mt-7 flex flex-wrap justify-center gap-3"><button onClick={start} className="rounded-full bg-[#ffd85c] px-6 py-3 font-black text-[#17142b]">Try again</button><button onClick={()=>setStatus("rule")} className="rounded-full border-2 border-white px-6 py-3 font-black">Check the rule</button></div></>}
+              {status==="complete" && <><div className="text-6xl">🏆</div><p className="mt-4 text-xs font-black tracking-[.18em] text-[#bff5d0]">LEVEL {levelIndex+1} COMPLETE</p><h2 className="display mt-2 text-4xl font-black">Track cleared!</h2><p className="mt-3 font-bold text-[#d8cdff]">You spotted all {TARGET_SCORE} multiples of {level.divisor}. That was fast thinking.</p><div className="mt-7 flex flex-wrap justify-center gap-3">{levelIndex<LEVELS.length-1&&<button onClick={advanceLevel} className="rounded-full bg-[#ffd85c] px-6 py-3 font-black text-[#17142b]">Next: rule of {LEVELS[levelIndex+1].divisor} →</button>}<button onClick={start} className="rounded-full border-2 border-white px-6 py-3 font-black">Race again</button></div>{levelIndex===LEVELS.length-1&&<p className="mt-5 font-black text-[#ffd85c]">All nine divisibility tracks cleared!</p>}</>}
+              {status==="rule" && <><div className="text-6xl">💡</div><h2 className="display mt-3 text-4xl font-black">The rule of {level.divisor}</h2><p className="mt-3 font-bold leading-6 text-[#d8cdff]">{level.rule}</p><p className="mt-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-bold text-[#ffd85c]">{level.tip}</p><div className="mx-auto mt-5 flex max-w-xs justify-center gap-2">{level.examples.map(n=><b key={n} className="grid min-w-13 place-items-center rounded-xl bg-white px-3 py-2 text-[#17142b]">{n}</b>)}</div><button onClick={start} className="mt-7 rounded-full bg-[#ffd85c] px-6 py-3 font-black text-[#17142b]">Got it — race again</button></>}
             </motion.div></motion.div>}</AnimatePresence>
           </div>
         </section>
 
         <aside className="flex flex-col gap-4"><div className="rounded-3xl bg-[#292442] p-5"><div className="flex items-center justify-between text-xs font-black"><span>GATE {Math.min(score+1,TARGET_SCORE)} / {TARGET_SCORE}</span><span>{Math.ceil(time)}s</span></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-[#423c65]"><motion.div className="h-full bg-[#ffd85c]" animate={{width:status==="playing"?timePercent:"100%"}} transition={{duration:.08}}/></div></div>
           <div className="rounded-3xl bg-[#f7f3ff] p-4 text-[#17142b]"><p className="text-center text-xs font-black tracking-wider text-[#6d4aff]">STEER</p><div className="mt-3 grid grid-cols-2 gap-3"><button aria-label="Move left" disabled={status!=="playing"||Boolean(feedback)||vehicleLane===0} onClick={()=>setVehicleLane((lane)=>Math.max(0,lane-1))} className="group rounded-2xl border-2 border-[#17142b] bg-white px-3 py-4 text-xl font-black shadow-[0_4px_0_#17142b] transition hover:bg-[#ece7ff] active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-35"><span className="inline-block transition group-active:-translate-x-1">←</span><span className="ml-2 text-xs">LEFT</span></button><button aria-label="Move right" disabled={status!=="playing"||Boolean(feedback)||vehicleLane===2} onClick={()=>setVehicleLane((lane)=>Math.min(2,lane+1))} className="group rounded-2xl border-2 border-[#17142b] bg-[#ffd85c] px-3 py-4 text-xl font-black shadow-[0_4px_0_#17142b] transition hover:bg-[#ffe68d] active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-35"><span className="mr-2 text-xs">RIGHT</span><span className="inline-block transition group-active:translate-x-1">→</span></button></div><div className="mt-4 flex items-center justify-center gap-2"><span className={`h-2 w-2 rounded-full ${vehicleLane===0?"bg-[#6d4aff]":"bg-[#d3cee1]"}`}/><span className={`h-2 w-2 rounded-full ${vehicleLane===1?"bg-[#6d4aff]":"bg-[#d3cee1]"}`}/><span className={`h-2 w-2 rounded-full ${vehicleLane===2?"bg-[#6d4aff]":"bg-[#d3cee1]"}`}/></div><p className="mt-3 text-center text-[11px] font-bold text-[#68647d]">Tap to move one lane · Keyboard ← →</p></div>
-          <div className="hidden rounded-3xl border border-white/10 bg-[#292442] p-5 text-sm font-bold leading-6 text-[#c9c4df] lg:block"><span className="text-[#ffd85c]">Quick tip:</span><br/>Don’t calculate the whole number. Only check its last digit.</div>
+          <div className="hidden rounded-3xl border border-white/10 bg-[#292442] p-5 text-sm font-bold leading-6 text-[#c9c4df] lg:block"><span className="text-[#ffd85c]">Quick tip:</span><br/>{level.tip}</div>
         </aside>
       </div>
     </div>
