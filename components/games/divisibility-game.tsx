@@ -7,6 +7,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 const ROUND_SECONDS = 5.4;
 const PASS_THROUGH_SECONDS = 0.8;
 const TARGET_SCORE = 8;
+const STAR_POINTS = [
+  [8,12,2,.2],[18,28,1,1.4],[29,9,2,.8],[40,22,1,2.1],[52,8,1,1.1],[63,25,2,.4],[76,13,1,1.8],[89,31,2,.9],
+  [12,44,1,2.5],[24,61,2,.6],[36,39,1,1.6],[49,53,2,2.2],[61,43,1,.3],[73,59,2,1.3],[86,48,1,2.7],[95,67,2,.7],
+  [5,76,1,1.9],[17,88,2,.1],[31,73,1,1.2],[45,91,2,2.4],[58,79,1,.5],[70,92,2,1.5],[83,76,1,2],[93,89,1,.9],
+] as const;
 
 const LEVELS = [
   { divisor:2, rule:"The final digit is 0, 2, 4, 6, or 8.", tip:"Only check the final digit.", examples:[12,28,46] },
@@ -20,10 +25,11 @@ const LEVELS = [
   { divisor:11, rule:"The alternating sum of the digits must be 0 or a multiple of 11.", tip:"For 121: 1 − 2 + 1 = 0.", examples:[121,242,363] },
 ] as const;
 
-type Round = { lanes: number[]; answerLane: number };
+type Round = { id: number; lanes: number[]; answerLane: number };
 type GameStatus = "intro" | "playing" | "crashed" | "complete" | "rule";
 type Feedback = "clear" | null;
 
+let nextRoundId = 0;
 function randomBetween(min: number, max: number) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function createRound(divisor: number): Round {
   const usesThreeDigits = divisor === 8 || divisor === 9 || divisor === 11;
@@ -40,7 +46,7 @@ function createRound(divisor: number): Round {
   }
   const lanes = [...wrong];
   lanes.splice(answerLane, 0, answer);
-  return { lanes, answerLane };
+  return { id: ++nextRoundId, lanes, answerLane };
 }
 
 function RaceCar({ crashed = false }: { crashed?: boolean }) {
@@ -57,11 +63,12 @@ function RaceCar({ crashed = false }: { crashed?: boolean }) {
 
 function SpaceWorld() {
   return <div className="absolute inset-0 overflow-hidden bg-[radial-gradient(circle_at_50%_28%,#26275d_0%,#101128_42%,#070713_100%)]">
-    <div className="absolute inset-0 opacity-80 [background-image:radial-gradient(circle,#fff_0_1px,transparent_1.5px),radial-gradient(circle,#8cecff_0_1px,transparent_1.5px)] [background-position:0_0,25px_35px] [background-size:68px_68px,94px_94px]" />
-    <div className="absolute -left-28 top-12 h-72 w-72 rounded-full bg-[#713dff]/20 blur-[75px]" />
-    <div className="absolute -right-20 top-28 h-56 w-56 rounded-full bg-[#00d9ff]/15 blur-[65px]" />
-    <div className="absolute right-[8%] top-[9%] h-16 w-16 rounded-full bg-gradient-to-br from-[#d8f7ff] to-[#7b71ff] shadow-[0_0_35px_#8cecff80] sm:h-24 sm:w-24"><div className="absolute inset-x-[-18%] top-1/2 h-2 -rotate-12 rounded-full border border-[#c8bcff]/70" /></div>
-    <div className="absolute left-1/2 top-[31%] h-px w-40 -translate-x-1/2 bg-[#80efff] shadow-[0_0_18px_5px_#41dbff]" />
+    <div className="space-nebula absolute -left-28 top-12 h-72 w-72 rounded-full bg-[#713dff]/20 blur-[75px]" />
+    <div className="space-nebula absolute -right-20 top-28 h-56 w-56 rounded-full bg-[#00d9ff]/15 blur-[65px] [animation-delay:-3s]" />
+    {STAR_POINTS.map(([left,top,size,delay],index)=><span key={index} className="space-star absolute rounded-full bg-white" style={{left:`${left}%`,top:`${top}%`,width:size,height:size,animationDelay:`-${delay}s`}} />)}
+    <div className="shooting-star absolute left-[12%] top-[18%] h-px w-24 -rotate-[28deg] bg-gradient-to-r from-transparent via-[#a9f4ff] to-white" />
+    <div className="space-planet absolute right-[8%] top-[9%] h-16 w-16 rounded-full bg-gradient-to-br from-[#d8f7ff] to-[#7b71ff] shadow-[0_0_35px_#8cecff80] sm:h-24 sm:w-24"><div className="absolute inset-x-[-18%] top-1/2 h-2 -rotate-12 rounded-full border border-[#c8bcff]/70" /></div>
+    <div className="horizon-glow absolute left-1/2 top-[31%] h-px w-40 -translate-x-1/2 bg-[#80efff] shadow-[0_0_18px_5px_#41dbff]" />
   </div>;
 }
 
@@ -129,16 +136,18 @@ export function DivisibilityGame() {
           <div className="relative min-h-0 flex-1 overflow-hidden lg:h-[600px] lg:flex-none">
             <SpaceWorld />
             <div className="absolute bottom-0 left-1/2 h-[70%] w-[118%] -translate-x-1/2 bg-gradient-to-b from-[#111329cc] to-[#191a34] [clip-path:polygon(42%_0,58%_0,100%_100%,0_100%)] shadow-[inset_0_0_80px_#050510]">
-              <div className="absolute inset-0 opacity-35 [background-image:linear-gradient(rgba(118,231,255,.15)_1px,transparent_1px)] [background-size:100%_42px]" />
-              <div className="absolute inset-0 bg-[#76e7ff] [clip-path:polygon(41.6%_0,42.1%_0,.7%_100%,0_100%,0_98.5%)] drop-shadow-[0_0_7px_#76e7ff]" />
-              <div className="absolute inset-0 bg-[#76e7ff] [clip-path:polygon(57.9%_0,58.4%_0,100%_98.5%,100%_100%,99.3%_100%)] drop-shadow-[0_0_7px_#76e7ff]" />
-              <div className="absolute inset-0 bg-[#8f7cff] opacity-85 [clip-path:polygon(47.25%_0,47.65%_0,34%_100%,33%_100%)] drop-shadow-[0_0_6px_#8f7cff]" />
-              <div className="absolute inset-0 bg-[#8f7cff] opacity-85 [clip-path:polygon(52.35%_0,52.75%_0,67%_100%,66%_100%)] drop-shadow-[0_0_6px_#8f7cff]" />
+              <div className="track-flow absolute inset-0 opacity-45 [background-image:linear-gradient(rgba(118,231,255,.18)_1px,transparent_1px)] [background-size:100%_42px]" />
+              <div className="track-edge absolute inset-0 bg-[#76e7ff] [clip-path:polygon(41.6%_0,42.1%_0,.7%_100%,0_100%,0_98.5%)] drop-shadow-[0_0_7px_#76e7ff]" />
+              <div className="track-edge absolute inset-0 bg-[#76e7ff] [clip-path:polygon(57.9%_0,58.4%_0,100%_98.5%,100%_100%,99.3%_100%)] drop-shadow-[0_0_7px_#76e7ff] [animation-delay:-1.1s]" />
+              <div className="lane-energy absolute inset-0 bg-[#8f7cff] [clip-path:polygon(47.25%_0,47.65%_0,34%_100%,33%_100%)] drop-shadow-[0_0_6px_#8f7cff]" />
+              <div className="lane-energy absolute inset-0 bg-[#8f7cff] [clip-path:polygon(52.35%_0,52.75%_0,67%_100%,66%_100%)] drop-shadow-[0_0_6px_#8f7cff] [animation-delay:-.8s]" />
               <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-[#050510]/80 to-transparent" />
             </div>
             <div className="absolute inset-x-0 top-4 z-10 mx-auto w-fit rounded-full border border-white/20 bg-[#17142bd9] px-4 py-2 text-center text-xs font-black tracking-wide shadow-lg backdrop-blur">MULTIPLE OF {level.divisor} = SAFE LANE</div>
 
-            {status === "playing" && <motion.div key={`${round.lanes.join("-")}-${score}`} initial={{ top:"30%", scale:.28 }} animate={{ top:["30%","73%","106%"], scale:[.28,1.12,1.48] }} transition={{ duration:ROUND_SECONDS+PASS_THROUGH_SECONDS, times:[0,ROUND_SECONDS/(ROUND_SECONDS+PASS_THROUGH_SECONDS),1], ease:"linear" }} className="absolute left-[7%] z-20 grid w-[86%] grid-cols-3 gap-3 sm:gap-7">
+            {status==="playing"&&<div className="pointer-events-none absolute inset-0 z-[5] overflow-hidden">{[8,19,31,69,82,93].map((left,index)=><span key={left} className="speed-streak absolute top-[24%] h-12 w-px bg-gradient-to-b from-transparent via-[#8cecff]/80 to-transparent" style={{left:`${left}%`,animationDelay:`-${index*.22}s`,animationDuration:`${1.15+(index%3)*.18}s`}}/>)}</div>}
+
+            {status === "playing" && <motion.div key={round.id} initial={{ top:"30%", scale:.28 }} animate={{ top:["30%","73%","106%"], scale:[.28,1.12,1.48] }} transition={{ duration:ROUND_SECONDS+PASS_THROUGH_SECONDS, times:[0,ROUND_SECONDS/(ROUND_SECONDS+PASS_THROUGH_SECONDS),1], ease:"linear" }} className="absolute left-[7%] z-20 grid w-[86%] grid-cols-3 gap-3 sm:gap-7">
               {round.lanes.map((number,index)=><div key={`${number}-${index}`} className="relative flex flex-col items-center"><div className={`relative grid aspect-[1.18/1] w-full max-w-25 place-items-center overflow-hidden rounded-2xl border text-2xl font-black text-white backdrop-blur-md sm:text-3xl ${feedback && index===round.answerLane ? "border-[#8fffc4] bg-[#2cda82]/35 shadow-[0_0_26px_#4bff9f]" : "border-[#bcefff]/70 bg-white/10 shadow-[inset_0_0_18px_rgba(255,255,255,.14),0_0_24px_rgba(81,218,255,.35)]"}`}><span className="absolute inset-x-3 top-2 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent"/><span className="relative drop-shadow-[0_0_9px_#8cecff]">{number}</span><span className="absolute bottom-2 right-2 h-1.5 w-1.5 rounded-full bg-[#8cecff] shadow-[0_0_8px_#8cecff]"/></div><div className="h-9 w-px bg-gradient-to-b from-[#8cecff] to-transparent shadow-[0_0_8px_#8cecff]"/></div>)}
             </motion.div>}
 

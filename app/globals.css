@@ -1,2 +1,20 @@
 @import "tailwindcss";
 :root{--ink:#17142b;--purple:#6d4aff;--cream:#fffaf0}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:var(--font-body),sans-serif;overflow-x:hidden}.display{font-family:var(--font-display),sans-serif;letter-spacing:-.055em}.section{max-width:1152px;margin:0 auto;padding:84px 24px}.eyebrow{color:var(--purple);font-size:.75rem;font-weight:900;letter-spacing:.13em;text-transform:uppercase}.grain{background-image:radial-gradient(rgba(23,20,43,.09) .7px,transparent .7px);background-size:7px 7px}
+
+@keyframes star-twinkle{0%,100%{opacity:.22;transform:scale(.75)}45%{opacity:1;transform:scale(1.5)}70%{opacity:.5;transform:scale(1)}}
+@keyframes nebula-breathe{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.9;transform:scale(1.12)}}
+@keyframes planet-float{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+@keyframes horizon-pulse{0%,100%{opacity:.55;transform:translateX(-50%) scaleX(.8)}50%{opacity:1;transform:translateX(-50%) scaleX(1.2)}}
+@keyframes track-flow{from{background-position-y:0}to{background-position-y:42px}}
+@keyframes neon-breathe{0%,100%{opacity:.55;filter:brightness(.85)}50%{opacity:1;filter:brightness(1.35)}}
+@keyframes streak-fall{0%{opacity:0;transform:translateY(-40px) scaleY(.45)}25%{opacity:.75}100%{opacity:0;transform:translateY(520px) scaleY(1.8)}}
+@keyframes shooting-star{0%,72%{opacity:0;transform:translate(-80px,-35px)}76%{opacity:1}88%,100%{opacity:0;transform:translate(330px,130px)}}
+.space-star{animation:star-twinkle 2.8s ease-in-out infinite;box-shadow:0 0 6px #b9f4ff;will-change:transform,opacity}
+.space-nebula{animation:nebula-breathe 8s ease-in-out infinite;will-change:transform,opacity}
+.space-planet{animation:planet-float 7s ease-in-out infinite;will-change:transform}
+.horizon-glow{animation:horizon-pulse 3s ease-in-out infinite;will-change:transform,opacity}
+.track-flow{animation:track-flow .7s linear infinite;will-change:background-position}
+.track-edge,.lane-energy{animation:neon-breathe 2.2s ease-in-out infinite}
+.speed-streak{animation:streak-fall 1.25s linear infinite;will-change:transform,opacity}
+.shooting-star{animation:shooting-star 8s ease-in-out infinite;will-change:transform,opacity}
+@media(prefers-reduced-motion:reduce){.space-star,.space-nebula,.space-planet,.horizon-glow,.track-flow,.track-edge,.lane-energy,.speed-streak,.shooting-star{animation:none!important}.speed-streak,.shooting-star{display:none}}
